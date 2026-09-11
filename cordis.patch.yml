@@ -1,0 +1,33 @@
+# The @argszero/cordis-plugin-job-id-guidance bundle patch: mount and go.
+#
+# The plugin needs no configuration. It watches `tools/post-execute` and appends
+# one pointing sentence when — and only when — a job control fails with this
+# call's own `unknown job <id>` for an id that cannot be a background job id.
+# Nothing else about a call is touched: a successful result, a blocked result,
+# an unrelated failure, and a failure naming a different id all pass through
+# byte-identical.
+#
+# Why the guard exists: the `subagent` tool has two async shapes. One-shot
+# `run_in_background: true` registers a **job** and returns a `jobId` ("collect
+# with `job_output`"); a continuable background delegation registers **no job**
+# and returns a durable `subagentId`, driven by `send_message` /
+# `interrupt_agent`. Both come back as a short opaque string, so reaching for
+# `job_output` with the second kind fails with text identical to a fabricated
+# id, and the model retries the control instead of switching tools.
+#
+# Config (optional), for a deployment that registers the controls under
+# different names:
+#
+#   - set:
+#       - id: job-id-guidance
+#         config:
+#           tools: ['my_job_read', 'my_job_stop']   # default: job_output, job_kill
+#
+# The plugin never vetoes a call (`kind: 'block'` is untouched), never rewrites
+# a success, and swallows its own errors — a diagnostic must not become a second
+# failure. When it cannot establish that the id is not a job id, it stays silent
+# rather than guessing.
+
+- insert:
+    - id: job-id-guidance
+      name: '@argszero/cordis-plugin-job-id-guidance'
